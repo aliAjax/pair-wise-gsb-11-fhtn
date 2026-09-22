@@ -1,182 +1,33 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { consoleMetrics, useInspectionStore } from "./state/store";
+import { RegisterForm } from "./ui/RegisterForm";
+import { PointOverview, RulesCard } from "./ui/PointOverview";
+import { AnomalyBoard } from "./ui/AnomalyBoard";
+import { ReleasedLedger } from "./ui/ReleasedLedger";
 
-type Field = {
-  key: string;
-  label: string;
-  type?: "number" | "date" | "select";
-  options?: string[];
-};
+type Tab = "overview" | "anomaly" | "released";
 
-type RecordItem = {
-  id: string;
-  status: string;
-  notes: string;
-  createdAt: string;
-  [key: string]: string | number;
-};
-
-const project = {
-  "number": 10,
-  "folder": "dfwl/frontend/dfwlfront-10",
-  "framework": "react",
-  "title": "油站设备巡检清单",
-  "subtitle": "创建巡检项、标记异常，并统计今日巡检状态。",
-  "industry": "石油",
-  "stack": [
-    "React",
-    "Vite",
-    "TypeScript",
-    "Zustand",
-    "Ant Design"
-  ],
-  "storageKey": "dfwlfront-10-inspection",
-  "formTitle": "新增巡检项",
-  "primaryAction": "加入清单",
-  "entityLabel": "巡检项",
-  "statuses": [
-    "未检",
-    "正常",
-    "异常"
-  ],
-  "filters": [
-    "全部区域",
-    "加油区",
-    "油罐区",
-    "收银区"
-  ],
-  "fields": [
-    {
-      "key": "item",
-      "label": "巡检项"
-    },
-    {
-      "key": "area",
-      "label": "区域",
-      "type": "select",
-      "options": [
-        "加油区",
-        "油罐区",
-        "收银区"
-      ]
-    },
-    {
-      "key": "inspector",
-      "label": "巡检人"
-    },
-    {
-      "key": "checkedAt",
-      "label": "巡检日期",
-      "type": "date"
-    }
-  ],
-  "records": [
-    {
-      "item": "加油机1号",
-      "area": "加油区",
-      "inspector": "何鑫",
-      "checkedAt": "2026-06-30",
-      "status": "正常",
-      "notes": "无异常"
-    },
-    {
-      "item": "卸油口密封",
-      "area": "油罐区",
-      "inspector": "何鑫",
-      "checkedAt": "2026-06-30",
-      "status": "异常",
-      "notes": "密封圈老化"
-    }
-  ],
-  "metricLabels": [
-    "巡检项",
-    "异常",
-    "已检"
-  ]
-} as const;
-
-const fields = project.fields as unknown as Field[];
-const statuses: string[] = [...project.statuses];
-
-function createBlank() {
-  return Object.fromEntries(fields.map((field) => [field.key, field.type === "number" ? 0 : ""]));
-}
-
-function loadRecords(): RecordItem[] {
-  const raw = localStorage.getItem(project.storageKey);
-  if (!raw) {
-    return project.records.map((record, index) => ({
-      ...record,
-      id: `seed-${index + 1}`,
-      createdAt: new Date(Date.now() - index * 86400000).toISOString()
-    })) as RecordItem[];
-  }
-  try {
-    return JSON.parse(raw) as RecordItem[];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecords(records: RecordItem[]) {
-  localStorage.setItem(project.storageKey, JSON.stringify(records));
-}
-
-function nextStatus(status: string) {
-  const index = statuses.indexOf(status);
-  return statuses[(index + 1) % statuses.length];
-}
-
-function primaryText(record: RecordItem) {
-  const first = fields[0];
-  const second = fields[1];
-  return [record[first.key], record[second.key]].filter(Boolean).join(" / ") || project.entityLabel;
-}
+const TABS: Array<{ key: Tab; label: string }> = [
+  { key: "overview", label: "点位总览" },
+  { key: "anomaly", label: "异常与复测" },
+  { key: "released", label: "已放行台账" }
+];
 
 export default function App() {
-  const [records, setRecords] = useState<RecordItem[]>(loadRecords);
-  const [form, setForm] = useState<Record<string, string | number>>(createBlank);
-  const [note, setNote] = useState("");
-  const [filter, setFilter] = useState<string>(project.filters[0]);
+  const records = useInspectionStore((s) => s.records);
+  const ensureLoaded = useInspectionStore((s) => s.ensureLoaded);
+  const resetDemo = useInspectionStore((s) => s.resetDemo);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [prefillPointId, setPrefillPointId] = useState<string | null>(null);
 
-  const filteredRecords = useMemo(() => {
-    if (filter.startsWith("全部")) return records;
-    return records.filter((record) => Object.values(record).includes(filter));
-  }, [filter, records]);
+  useEffect(() => { ensureLoaded(); }, [ensureLoaded]);
 
-  const metrics = useMemo(() => {
-    const total = records.length;
-    const second = records.filter((record) => record.status === statuses[1]).length;
-    const third = records.filter((record) => record.status === statuses[2]).length;
-    const numberValues = records.flatMap((record) =>
-      fields.filter((field) => field.type === "number").map((field) => Number(record[field.key] || 0))
-    );
-    const sum = numberValues.reduce((acc, value) => acc + value, 0);
-    return [total, second || sum, third || Math.round(sum / Math.max(total, 1))];
-  }, [records]);
+  const metrics = useMemo(() => consoleMetrics(records), [records]);
 
-  const chartRows = statuses.map((status) => ({
-    status,
-    value: records.filter((record) => record.status === status).length
-  }));
-  const maxChart = Math.max(1, ...chartRows.map((row) => row.value));
-
-  function updateRecords(next: RecordItem[]) {
-    setRecords(next);
-    saveRecords(next);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const next: RecordItem = {
-      ...form,
-      id: crypto.randomUUID(),
-      status: statuses[0],
-      notes: note || "暂无备注",
-      createdAt: new Date().toISOString()
-    } as RecordItem;
-    updateRecords([next, ...records]);
-    setForm(createBlank());
-    setNote("");
+  function handleReset() {
+    if (window.confirm("将清空当前全部登记并恢复演示数据，确定继续？")) {
+      resetDemo();
+    }
   }
 
   return (
@@ -184,105 +35,71 @@ export default function App() {
       <div className="shell">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{project.industry}行业前端最小闭环</p>
-            <h1>{project.title}</h1>
-            <p className="subtitle">{project.subtitle}</p>
+            <p className="eyebrow">石油储运 · 防静电安全闭环</p>
+            <h1>油站防静电接地巡检与复测放行台</h1>
+            <p className="subtitle">
+              按区域、设备、接地点、班次记录接地电阻与仪器检定日；电阻超 4Ω 或仪器失效即停异常，
+              换班复测连续两次合格方可放行；放行后冻结读数与班组，改动另建原因版本并留旧值。
+            </p>
           </div>
-          <div className="stack">{project.stack.map((item) => <span className="tag" key={item}>{item}</span>)}</div>
+          <div className="head-actions">
+            <div className="stack">
+              <span className="tag">React</span>
+              <span className="tag">TypeScript</span>
+              <span className="tag">Zustand</span>
+              <span className="tag">localStorage</span>
+            </div>
+            <button type="button" className="secondary" onClick={handleReset}>恢复演示数据</button>
+          </div>
         </header>
 
         <section className="metrics">
-          {project.metricLabels.map((label, index) => (
-            <article className="metric" key={label}>
-              <span>{label}</span>
-              <strong>{metrics[index]}</strong>
-            </article>
-          ))}
+          <article className="metric"><span>接地点位</span><strong>{metrics.points}</strong></article>
+          <article className="metric alert"><span>停在异常</span><strong>{metrics.openFaults}</strong></article>
+          <article className="metric warn"><span>复测中</span><strong>{metrics.pendingRetests}</strong></article>
+          <article className="metric ok"><span>已放行</span><strong>{metrics.released}</strong></article>
+          <article className="metric lock"><span>闭锁区域</span><strong>{metrics.lockedAreas}</strong></article>
         </section>
 
         <section className="workspace">
-          <form className="panel" onSubmit={handleSubmit}>
-            <h2>{project.formTitle}</h2>
-            <div className="form-grid">
-              {fields.map((field) => (
-                <label key={field.key}>
-                  {field.label}
-                  {field.type === "select" ? (
-                    <select
-                      value={String(form[field.key])}
-                      onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
-                      required
-                    >
-                      <option value="">请选择</option>
-                      {field.options?.map((option) => <option key={option}>{option}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type || "text"}
-                      value={form[field.key]}
-                      onChange={(event) =>
-                        setForm({ ...form, [field.key]: field.type === "number" ? Number(event.target.value) : event.target.value })
-                      }
-                      required
-                    />
-                  )}
-                </label>
-              ))}
-              <label>
-                备注
-                <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="填写处理说明或现场备注" />
-              </label>
-              <button type="submit">{project.primaryAction}</button>
-            </div>
-          </form>
+          <div className="left-col">
+            <RegisterForm
+              prefillPointId={prefillPointId}
+              onConsumed={() => setPrefillPointId(null)}
+            />
+            <RulesCard />
+          </div>
 
           <section className="list-panel">
-            <div className="toolbar">
-              <h2>{project.entityLabel}列表</h2>
-              <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-                {project.filters.map((item) => <option key={item}>{item}</option>)}
-              </select>
-            </div>
-
-            <div className="record-grid">
-              {filteredRecords.length === 0 ? <div className="empty">暂无匹配数据</div> : filteredRecords.map((record) => (
-                <article className="record" key={record.id}>
-                  <div className="record-head">
-                    <p className="record-title">{primaryText(record)}</p>
-                    <span className="status">{record.status}</span>
-                  </div>
-                  <div className="details">
-                    {fields.map((field) => (
-                      <span key={field.key}>{field.label}: {record[field.key]}</span>
-                    ))}
-                  </div>
-                  <p className="note">{record.notes}</p>
-                  <div className="actions">
-                    <button type="button" onClick={() => updateRecords(records.map((item) => item.id === record.id ? { ...item, status: nextStatus(item.status) } : item))}>
-                      流转状态
-                    </button>
-                    <button className="secondary" type="button" onClick={() => navigator.clipboard?.writeText(primaryText(record))}>
-                      复制摘要
-                    </button>
-                    <button className="danger" type="button" onClick={() => updateRecords(records.filter((item) => item.id !== record.id))}>
-                      删除
-                    </button>
-                  </div>
-                </article>
+            <div className="tabs" role="tablist">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  className={`tab ${tab === t.key ? "active" : ""}`}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label}
+                  {t.key === "anomaly" && metrics.openFaults + metrics.pendingRetests > 0 && (
+                    <span className="tab-badge">{metrics.openFaults + metrics.pendingRetests}</span>
+                  )}
+                </button>
               ))}
             </div>
 
-            <div className="mini-chart">
-              {chartRows.map((row) => (
-                <div className="bar" key={row.status}>
-                  <span>{row.status}</span>
-                  <div className="bar-track"><div className="bar-fill" style={{ width: `${(row.value / maxChart) * 100}%` }} /></div>
-                  <strong>{row.value}</strong>
-                </div>
-              ))}
-            </div>
+            {tab === "overview" && (
+              <PointOverview onRegister={(id) => { setPrefillPointId(id); setTab("overview"); }} />
+            )}
+            {tab === "anomaly" && <AnomalyBoard />}
+            {tab === "released" && <ReleasedLedger />}
           </section>
         </section>
+
+        <footer className="foot">
+          数据仅保存在本机浏览器 localStorage；刷新 / 重载后点位、异常、复测与版本对应关系保持一致。
+        </footer>
       </div>
     </main>
   );
