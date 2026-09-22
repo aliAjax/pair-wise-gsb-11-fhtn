@@ -70,6 +70,8 @@ h1 {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+  max-width: 360px;
 }
 
 .tag {
@@ -83,7 +85,7 @@ h1 {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -107,10 +109,80 @@ h1 {
   font-size: 30px;
 }
 
+/* 成功/信息提示 */
+.notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #e8f4ef;
+  border: 1px solid #bfe3d4;
+  color: #14724f;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+
+/* 受阻面板：列规则、原值、现值 */
+.blocked {
+  background: #fdf0ec;
+  border: 1px solid #f2c4b8;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.blocked-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #b03a24;
+  margin-bottom: 10px;
+}
+
+.blocked-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1fr;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-top: 1px dashed #f2c4b8;
+  color: #6b3a2e;
+  font-size: 14px;
+}
+
+.blocked-grid-head {
+  border-top: 0;
+  font-weight: 700;
+  color: #b03a24;
+}
+
+/* 点位总览条 */
+.point-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #d9e2ee;
+  background: #fff;
+  color: #445069;
+}
+
+.chip-good { background: #e8f4ef; border-color: #bfe3d4; color: #14724f; }
+.chip-bad { background: #fdeceb; border-color: #f2c4b8; color: #b03a24; }
+.chip-muted { color: #8a94a6; }
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(280px, 360px) 1fr;
   gap: 18px;
+  align-items: start;
 }
 
 .panel, .list-panel {
@@ -160,6 +232,15 @@ textarea {
   margin-bottom: 14px;
 }
 
+.toolbar-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-filters select {
+  width: auto;
+}
+
 .record-grid {
   display: grid;
   gap: 12px;
@@ -181,8 +262,15 @@ textarea {
 
 .record-title {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .status {
@@ -193,6 +281,13 @@ textarea {
   font-size: 12px;
   white-space: nowrap;
 }
+
+.st-good { background: #e8f4ef; color: #14724f; }
+.st-bad { background: #fdeceb; color: #b03a24; }
+.st-warn { background: #fdf3e0; color: #a66a00; }
+.st-info { background: #e7f0fb; color: #1f5fa8; }
+.st-kind { background: #eef2f7; color: #536078; }
+.st-lock { background: #efe9f7; color: #6b4fa8; }
 
 .details {
   display: grid;
@@ -211,38 +306,63 @@ textarea {
   margin: 0 0 12px;
 }
 
+.note-bad {
+  background: #fdeceb;
+  color: #b03a24;
+}
+
 .actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.mini-chart {
+/* 版本留痕与复测记录 */
+.versions {
   display: grid;
   gap: 8px;
-  margin-top: 16px;
-}
-
-.bar {
-  display: grid;
-  grid-template-columns: 92px 1fr 42px;
-  gap: 10px;
-  align-items: center;
-  color: #536078;
+  margin: 0 0 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f4f0fa;
+  color: #4a3f63;
   font-size: 13px;
 }
 
-.bar-track {
-  height: 10px;
-  border-radius: 999px;
-  background: #e7edf4;
-  overflow: hidden;
+.version {
+  display: grid;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed #d8cdea;
 }
 
-.bar-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #176b87, #64b6ac);
+/* 内联表单（复测、冻结变更） */
+.inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dfe7f1;
+}
+
+.span-all {
+  grid-column: 1 / -1;
+}
+
+/* 异常复测与放行 */
+.exceptions-panel {
+  margin-top: 18px;
+}
+
+.exc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.exc {
+  background: #fff;
 }
 
 .empty {
@@ -254,7 +374,8 @@ textarea {
 @media (max-width: 860px) {
   .app { padding: 18px; }
   .topbar, .workspace { grid-template-columns: 1fr; }
-  .stack { justify-content: flex-start; }
-  .metrics { grid-template-columns: 1fr; }
+  .stack { justify-content: flex-start; max-width: none; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .details { grid-template-columns: 1fr; }
+  .blocked-grid { grid-template-columns: 1fr; }
 }
